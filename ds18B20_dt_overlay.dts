@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2837";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			gpios-ds18b20 {
+				compatible = "maxim,ds18b20-dev";
+				ds18b20-gpio = <&gpio 26 0>;
+				status = "okay";
+			};
+		};
+	};
+};
