@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
@@ -28,7 +27,6 @@ static int temp;
 #define DS18B20_READ_SCRATCHPAD	0xBE
 
 static int driver_open(struct inode *device_file, struct file *instance);
-static int driver_close(struct inode *device_file, struct file *instance);
 static ssize_t driver_read(struct file *file, char *user_buf, size_t len, loff_t *off);
 
 static void write_byte(int value)
@@ -108,8 +106,7 @@ static int temp_read(void)
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.open = driver_open,
-	.read = driver_read,
-	.release = driver_close
+	.read = driver_read
 };
 
 static int dev_probe(struct platform_device *pdev)
@@ -162,11 +159,6 @@ ClassError:
 static int driver_open(struct inode *device_file, struct file *instance)
 {
     temp = temp_read();
-	return 0;
-}
-
-static int driver_close(struct inode *device_file, struct file *instance)
-{
 	return 0;
 }
 
