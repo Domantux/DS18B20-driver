@@ -32,6 +32,32 @@ static int temp;
 static int driver_open(struct inode *device_file, struct file *instance);
 static ssize_t driver_read(struct file *file, char *user_buf, size_t len, loff_t *off);
 
+/* Dallas/Maxim 1-Wire CRC-8, polynomial 0x31 (reflected: 0x8c) */
+static u8 crc8_update(u8 crc, u8 data)
+{
+	u8 i;
+
+	crc = crc ^ data;
+
+	for (i = 0; i < 8; ++i) {
+		if (crc & 0x01)
+			crc = (crc >> 1) ^ 0x8c;
+		else
+			crc >>= 1;
+	}
+	return crc;
+}
+
+static u8 check_crc(u8 *cp, u8 length)
+{
+	u8 crc = 0x00;
+
+	while (length--)
+		crc = crc8_update(crc, *cp++);
+
+	return crc;
+}
+
 static void write_byte(int value)
 {
 	for (int loop = 0; loop < 8; loop++) {
@@ -83,7 +109,7 @@ static int reset(void)
 
 static int temp_read(void)
 {
-	int data[9];
+	u8 data[9];
 
 	if (reset() == 1) {
 		write_byte(DS18B20_SKIP_ROM);
@@ -95,6 +121,10 @@ static int temp_read(void)
 			write_byte(DS18B20_READ_SCRATCHPAD);
 			for (int i = 0; i < 9; i++)
 				data[i] = read_byte();
+			if (check_crc(data, 9) != 0) {
+				pr_err("DS18B20: CRC check failed\n");
+				return INT_MIN;
+			}
 		} else {
 			pr_err("DS18B20: second reset failed\n");
 			return INT_MIN;
