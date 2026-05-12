@@ -6,6 +6,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/limits.h>
+#include <linux/mutex.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
@@ -14,6 +15,8 @@ static const struct of_device_id dev_id[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, dev_id);
+
+static DEFINE_MUTEX(lock);
 
 static dev_t device_nr;
 static struct class *class;
@@ -109,6 +112,13 @@ static const struct file_operations fops = {
 	.read = driver_read
 };
 
+static char *ds18b20_devnode(const struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0444;
+	return NULL;
+}
+
 static int dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -132,6 +142,8 @@ static int dev_probe(struct platform_device *pdev)
 		pr_err("DS18B20: failed to create device class\n");
 		goto ClassError;
 	}
+
+	class->devnode = ds18b20_devnode;
 
 	if (!device_create(class, NULL, device_nr, NULL, DRIVER_NAME)) {
 		pr_err("DS18B20: failed to create device file\n");
@@ -158,7 +170,12 @@ ClassError:
 
 static int driver_open(struct inode *device_file, struct file *instance)
 {
-    temp = temp_read();
+	if (mutex_lock_interruptible(&lock))
+		return -EINTR;
+
+	temp = temp_read();
+
+	mutex_unlock(&lock);
 	return 0;
 }
 
