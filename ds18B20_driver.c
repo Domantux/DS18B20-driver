@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/limits.h>
 #include <linux/mutex.h>
+#include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
@@ -133,7 +134,7 @@ static int temp_read(void)
 		pr_err("DS18B20: initial reset failed - sensor not present\n");
 		return INT_MIN;
 	}
-	return ((data[1] << 8) | data[0]);
+	return (int)(s16)((data[1] << 8) | data[0]) * 1000 / 16;
 }
 
 static const struct file_operations fops = {
@@ -223,7 +224,7 @@ static ssize_t driver_read(struct file *file, char *user_buf, size_t len, loff_t
 	}
 
 	snprintf(buffer, sizeof(buffer), "Temperature: %d.%02dC\n",
-		 temp / 16, (temp % 16) * 25);
+		 temp / 1000, abs(temp % 1000) / 10);
 
 	to_copy = min_t(size_t, strlen(buffer), len);
 	not_copied = copy_to_user(user_buf, buffer, to_copy);
